@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoSignal LIVE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Barlow+Condensed:wght@400;600;800&display=swap');
+
+:root {
+  --bg: #05070a;
+  --s1: #090d13;
+  --s2: #0d1520;
+  --border: #152035;
+  --green: #00e676;
+  --red: #ff1744;
+  --gold: #ffc107;
+  --blue: #29b6f6;
+  --text: #dce8f5;
+  --muted: #3d5470;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-head: 'Barlow Condensed', sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+}
+
+/* Scanline overlay */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+  pointer-events:none; z-index:9999;
+}
+
+.wrap { max-width:860px; margin:0 auto; padding:16px; }
+
+/* ── HEADER ── */
+.header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 0 16px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:16px;
+}
+
+.brand {
+  font-family: var(--font-head);
+  font-size:22px; font-weight:800;
+  letter-spacing:2px; text-transform:uppercase;
+  color:var(--green);
+  text-shadow: 0 0 20px rgba(0,230,118,0.4);
+}
+
+.brand span { color:var(--text); }
+
+.header-right { display:flex; align-items:center; gap:12px; }
+
+.live-pill {
+  display:flex; align-items:center; gap:6px;
+  background: rgba(0,230,118,0.08);
+  border:1px solid rgba(0,230,118,0.3);
+  border-radius:4px; padding:4px 10px;
+  font-size:10px; color:var(--green); font-weight:700;
+  letter-spacing:1.5px;
+}
+
+.pulse { width:6px; height:6px; background:var(--green); border-radius:50%; animation:blink 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+.refresh-timer { font-size:10px; color:var(--muted); }
+
+/* ── PAIRS ROW ── */
+.pairs-row {
+  display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;
+}
+
+.pair-chip {
+  background:var(--s1); border:1px solid var(--border);
+  color:var(--muted); font-family:var(--font-mono);
+  font-size:11px; font-weight:700; padding:7px 12px;
+  border-radius:4px; cursor:pointer; transition:all 0.15s;
+  letter-spacing:0.5px;
+}
+.pair-chip:hover { border-color:var(--muted); color:var(--text); }
+.pair-chip.active {
+  border-color:var(--green); color:var(--green);
+  background:rgba(0,230,118,0.06);
+  box-shadow:0 0 12px rgba(0,230,118,0.1);
+}
+
+/* ── TIMEFRAME ── */
+.tf-row { display:flex; gap:5px; margin-bottom:16px; }
+
+.tf-chip {
+  background:var(--s1); border:1px solid var(--border);
+  color:var(--muted); font-family:var(--font-mono);
+  font-size:10px; padding:5px 11px;
+  border-radius:3px; cursor:pointer; transition:all 0.15s;
+}
+.tf-chip.active {
+  border-color:var(--gold); color:var(--gold);
+  background:rgba(255,193,7,0.05);
+}
+
+/* ── MARKET TICKER ── */
+.ticker-card {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:6px; padding:14px 16px;
+  display:grid; grid-template-columns:1fr 1fr 1fr 1fr;
+  gap:12px; margin-bottom:14px;
+}
+
+.tick-item { text-align:center; }
+.tick-label { font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+.tick-value { font-size:16px; font-weight:700; font-family:var(--font-mono); }
+.tick-value.up { color:var(--green); }
+.tick-value.down { color:var(--red); }
+.tick-value.neutral { color:var(--text); }
+.tick-sub { font-size:10px; color:var(--muted); margin-top:2px; }
+
+/* ── MAIN SIGNAL CARD ── */
+.signal-card {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:6px; overflow:hidden; margin-bottom:14px;
+}
+
+.signal-top {
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+
+.signal-pair-label { font-size:13px; color:var(--muted); }
+
+.signal-dir {
+  font-family:var(--font-head);
+  font-size:28px; font-weight:800; letter-spacing:3px;
+}
+.dir-buy { color:var(--green); text-shadow:0 0 20px rgba(0,230,118,0.5); }
+.dir-sell { color:var(--red); text-shadow:0 0 20px rgba(255,23,68,0.5); }
+.dir-wait { color:var(--gold); text-shadow:0 0 20px rgba(255,193,7,0.5); }
+.dir-idle { color:var(--muted); }
+
+/* Orders grid */
+.orders-grid {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  border-bottom:1px solid var(--border);
+}
+
+.order-cell {
+  padding:14px 16px;
+  border-right:1px solid var(--border);
+}
+.order-cell:last-child { border-right:none; }
+
+.order-label {
+  font-size:9px; letter-spacing:1.5px; color:var(--muted);
+  text-transform:uppercase; margin-bottom:6px;
+}
+
+.order-value {
+  font-size:18px; font-weight:700;
+}
+.ov-entry { color:var(--gold); }
+.ov-sl { color:var(--red); }
+.ov-tp { color:var(--green); }
+
+.order-sub { font-size:10px; color:var(--muted); margin-top:3px; }
+
+/* Copy button */
+.copy-btn {
+  display:block; width:calc(100% - 32px);
+  margin:12px 16px;
+  background:rgba(0,230,118,0.08);
+  border:1px solid rgba(0,230,118,0.25);
+  color:var(--green); font-family:var(--font-mono);
+  font-size:11px; font-weight:700; letter-spacing:1px;
+  padding:9px; border-radius:4px; cursor:pointer;
+  transition:all 0.15s; text-align:center;
+}
+.copy-btn:hover { background:rgba(0,230,118,0.15); }
+.copy-btn.copied { color:var(--text); border-color:var(--border); }
+
+/* Analysis */
+.analysis-block {
+  padding:14px 16px;
+  border-top:1px solid var(--border);
+  font-size:12px; line-height:1.75; color:#7a9abb;
+}
+
+.analysis-block.loading {
+  display:flex; align-items:center; gap:10px; color:var(--muted);
+}
+
+/* Confidence */
+.conf-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 16px; border-top:1px solid var(--border);
+}
+.conf-label { font-size:10px; color:var(--muted); letter-spacing:1px; white-space:nowrap; }
+.conf-track { flex:1; height:3px; background:var(--s2); border-radius:2px; overflow:hidden; }
+.conf-fill { height:100%; border-radius:2px; transition:width 1s ease; width:0%; }
+.conf-pct { font-size:11px; font-weight:700; white-space:nowrap; }
+
+/* ── INDICATORS ── */
+.indicators {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+  margin-bottom:14px;
+}
+
+.ind-card {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:6px; padding:10px 12px;
+}
+.ind-label { font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+.ind-val { font-size:15px; font-weight:700; }
+.ind-sub { font-size:9px; color:var(--muted); margin-top:2px; }
+.ind-bull { color:var(--green); }
+.ind-bear { color:var(--red); }
+.ind-neut { color:var(--gold); }
+
+/* ── ANALYZE BTN ── */
+.analyze-btn {
+  width:100%; padding:14px;
+  background:var(--green); color:#000;
+  border:none; border-radius:6px;
+  font-family:var(--font-head);
+  font-size:16px; font-weight:800;
+  letter-spacing:2px; text-transform:uppercase;
+  cursor:pointer; transition:all 0.15s;
+  margin-bottom:14px;
+}
+.analyze-btn:hover { opacity:0.88; transform:translateY(-1px); }
+.analyze-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+
+/* ── SPINNER ── */
+.spin {
+  width:14px; height:14px;
+  border:2px solid var(--border);
+  border-top-color:var(--green);
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+  flex-shrink:0;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── STATUS BAR ── */
+.status-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 0;
+  border-top:1px solid var(--border);
+  margin-top:8px;
+  font-size:9px; color:var(--muted); letter-spacing:1px;
+}
+
+.status-ok { color:var(--green); }
+.status-err { color:var(--red); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="brand">Crypto<span>Signal</span></div>
+    <div class="header-right">
+      <div class="live-pill"><div class="pulse"></div>BINANCE LIVE</div>
+      <div class="refresh-timer" id="timerDisp">—</div>
+    </div>
+  </div>
+
+  <!-- Pairs -->
+  <div class="pairs-row">
+    <div class="pair-chip active" onclick="setPair(this,'BTCUSDT','BTC/USDT')">BTC/USDT</div>
+    <div class="pair-chip" onclick="setPair(this,'ETHUSDT','ETH/USDT')">ETH/USDT</div>
+    <div class="pair-chip" onclick="setPair(this,'SOLUSDT','SOL/USDT')">SOL/USDT</div>
+    <div class="pair-chip" onclick="setPair(this,'BNBUSDT','BNB/USDT')">BNB/USDT</div>
+    <div class="pair-chip" onclick="setPair(this,'XRPUSDT','XRP/USDT')">XRP/USDT</div>
+    <div class="pair-chip" onclick="setPair(this,'DOGEUSDT','DOGE/USDT')">DOGE/USDT</div>
+    <div class="pair-chip" onclick="setPair(this,'ADAUSDT','ADA/USDT')">ADA/USDT</div>
+    <div class="pair-chip" onclick="setPair(this,'AVAXUSDT','AVAX/USDT')">AVAX/USDT</div>
+  </div>
+
+  <!-- Timeframes -->
+  <div class="tf-row">
+    <div class="tf-chip active" onclick="setTF(this,'1m',1)">1M</div>
+    <div class="tf-chip" onclick="setTF(this,'5m',5)">5M</div>
+    <div class="tf-chip" onclick="setTF(this,'15m',15)">15M</div>
+    <div class="tf-chip" onclick="setTF(this,'1h',60)">1H</div>
+    <div class="tf-chip" onclick="setTF(this,'4h',240)">4H</div>
+  </div>
+
+  <!-- Ticker -->
+  <div class="ticker-card">
+    <div class="tick-item">
+      <div class="tick-label">Prix</div>
+      <div class="tick-value neutral" id="tPrice">—</div>
+    </div>
+    <div class="tick-item">
+      <div class="tick-label">24h Change</div>
+      <div class="tick-value" id="tChange">—</div>
+    </div>
+    <div class="tick-item">
+      <div class="tick-label">Volume 24h</div>
+      <div class="tick-value neutral" id="tVol">—</div>
+      <div class="tick-sub" id="tVolSub"></div>
+    </div>
+    <div class="tick-item">
+      <div class="tick-label">High / Low</div>
+      <div class="tick-value neutral" id="tHL">—</div>
+    </div>
+  </div>
+
+  <!-- Indicators -->
+  <div class="indicators">
+    <div class="ind-card">
+      <div class="ind-label">RSI (14)</div>
+      <div class="ind-val" id="iRSI">—</div>
+      <div class="ind-sub" id="iRSIsub">—</div>
+    </div>
+    <div class="ind-card">
+      <div class="ind-label">MACD</div>
+      <div class="ind-val" id="iMACD">—</div>
+      <div class="ind-sub" id="sMACDsub">—</div>
+    </div>
+    <div class="ind-card">
+      <div class="ind-label">EMA 20/50</div>
+      <div class="ind-val" id="iEMA">—</div>
+      <div class="ind-sub" id="iEMAsub">—</div>
+    </div>
+    <div class="ind-card">
+      <div class="ind-label">Volume</div>
+      <div class="ind-val" id="iVol">—</div>
+      <div class="ind-sub" id="iVolsub">—</div>
+    </div>
+  </div>
+
+  <!-- Analyze -->
+  <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">
+    ⚡ ANALYSER — GÉNÉRER SIGNAL
+  </button>
+
+  <!-- Signal card -->
+  <div class="signal-card">
+    <div class="signal-top">
+      <div>
+        <div class="signal-pair-label" id="sigLabel">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px" id="sigTime">En attente d'analyse</div>
+      </div>
+      <div class="signal-dir dir-idle" id="sigDir">——</div>
+    </div>
+
+    <div class="orders-grid">
+      <div class="order-cell">
+        <div class="order-label">📍 Entrée</div>
+        <div class="order-value ov-entry" id="oEntry">—</div>
+        <div class="order-sub" id="oEntrySub"></div>
+      </div>
+      <div class="order-cell">
+        <div class="order-label">🛑 Stop Loss</div>
+        <div class="order-value ov-sl" id="oSL">—</div>
+        <div class="order-sub" id="oSLsub"></div>
+      </div>
+      <div class="order-cell">
+        <div class="order-label">🎯 Take Profit</div>
+        <div class="order-value ov-tp" id="oTP">—</div>
+        <div class="order-sub" id="oTPsub"></div>
+      </div>
+    </div>
+
+    <button class="copy-btn" id="copyBtn" onclick="copyOrders()">[ COPIER LES ORDRES ]</button>
+
+    <div class="analysis-block" id="analysisBlock">
+      En attente d'analyse…
+    </div>
+
+    <div class="conf-row">
+      <div class="conf-label">CONFIANCE</div>
+      <div class="conf-track"><div class="conf-fill" id="confFill"></div></div>
+      <div class="conf-pct" id="confPct">—</div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="dataStatus">● En attente de données</span>
+    <span id="lastUpdate">—</span>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ──
+let pair = 'BTCUSDT';
+let pairLabel = 'BTC/USDT';
+let tfCode = '1m';
+let tfMinutes = 1;
+let marketData = null;
+let autoTimer = null;
+let countdown = 0;
+
+// ── PAIR / TF ──
+function setPair(el, code, label) {
+  document.querySelectorAll('.pair-chip').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  pair = code; pairLabel = label;
+  marketData = null;
+  resetSignal();
+  fetchMarket();
+}
+
+function setTF(el, code, mins) {
+  document.querySelectorAll('.tf-chip').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  tfCode = code; tfMinutes = mins;
+  marketData = null;
+  fetchMarket();
+}
+
+// ── FETCH BINANCE ──
+async function fetchMarket() {
+  try {
+    setStatus('● Connexion Binance…', false);
+
+    const [ticker24, klines] = await Promise.all([
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`).then(r => r.json()),
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${pair}&interval=${tfCode}&limit=100`).then(r => r.json())
+    ]);
+
+    if (ticker24.code || !Array.isArray(klines)) throw new Error('Binance error');
+
+    const closes = klines.map(k => parseFloat(k[4]));
+    const volumes = klines.map(k => parseFloat(k[5]));
+    const price = parseFloat(ticker24.lastPrice);
+    const change = parseFloat(ticker24.priceChangePercent);
+
+    // RSI
+    const rsi = calcRSI(closes, 14);
+
+    // EMA
+    const ema20 = calcEMA(closes, 20);
+    const ema50 = calcEMA(closes, 50);
+
+    // MACD
+    const { macd, signal: macdSig } = calcMACD(closes);
+
+    // Volume comparison
+    const avgVol = volumes.slice(-20,-1).reduce((a,b)=>a+b,0) / 19;
+    const lastVol = volumes[volumes.length-1];
+    const volRatio = lastVol / avgVol;
+
+    marketData = {
+      price, change,
+      high24: parseFloat(ticker24.highPrice),
+      low24: parseFloat(ticker24.lowPrice),
+      vol24: parseFloat(ticker24.quoteVolume),
+      rsi: rsi.toFixed(1),
+      ema20: ema20.toFixed(2),
+      ema50: ema50.toFixed(2),
+      macd: macd.toFixed(4),
+      macdSig: macdSig.toFixed(4),
+      volRatio: volRatio.toFixed(2),
+      closes
+    };
+
+    updateTicker();
+    updateIndicators();
+    setStatus('● Données live Binance', true);
+
+  } catch(e) {
+    setStatus('● Erreur connexion Binance', false);
+    console.error(e);
+  }
+}
+
+// ── INDICATORS ──
+function calcRSI(closes, period) {
+  let gains = 0, losses = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const diff = closes[i] - closes[i-1];
+    if (diff > 0) gains += diff; else losses -= diff;
+  }
+  const rs = gains / (losses || 0.001);
+  return 100 - 100/(1+rs);
+}
+
+function calcEMA(closes, period) {
+  const k = 2 / (period + 1);
+  let ema = closes.slice(0, period).reduce((a,b)=>a+b,0) / period;
+  for (let i = period; i < closes.length; i++) ema = closes[i]*k + ema*(1-k);
+  return ema;
+}
+
+function calcMACD(closes) {
+  const ema12 = calcEMA(closes, 12);
+  const ema26 = calcEMA(closes, 26);
+  const macd = ema12 - ema26;
+  // Signal line approx
+  const macdLine = closes.slice(-9).map((_,i) => {
+    const slice = closes.slice(0, closes.length - 8 + i);
+    return calcEMA(slice,12) - calcEMA(slice,26);
+  });
+  const signal = calcEMA(macdLine, 9);
+  return { macd, signal };
+}
+
+// ── UPDATE UI ──
+function updateTicker() {
+  if (!marketData) return;
+  const { price, change, high24, low24, vol24 } = marketData;
+  document.getElementById('tPrice').textContent = fmt(price);
+  const chEl = document.getElementById('tChange');
+  chEl.textContent = (change > 0 ? '+' : '') + change.toFixed(2) + '%';
+  chEl.className = 'tick-value ' + (change > 0 ? 'up' : change < 0 ? 'down' : 'neutral');
+  document.getElementById('tVol').textContent = fmtVol(vol24);
+  document.getElementById('tHL').textContent = `${fmt(high24)} / ${fmt(low24)}`;
+}
+
+function updateIndicators() {
+  if (!marketData) return;
+  const { rsi, ema20, ema50, macd, macdSig, volRatio, price } = marketData;
+  const r = parseFloat(rsi);
+
+  // RSI
+  const rsiEl = document.getElementById('iRSI');
+  rsiEl.textContent = rsi;
+  rsiEl.className = 'ind-val ' + (r > 70 ? 'ind-bear' : r < 30 ? 'ind-bull' : 'ind-neut');
+  document.getElementById('iRSIsub').textContent = r > 70 ? 'Suracheté' : r < 30 ? 'Survendu' : 'Neutre';
+
+  // MACD
+  const macdDiff = parseFloat(macd) - parseFloat(macdSig);
+  const macdEl = document.getElementById('iMACD');
+  macdEl.textContent = macdDiff > 0 ? '▲ Haussier' : '▼ Baissier';
+  macdEl.className = 'ind-val ' + (macdDiff > 0 ? 'ind-bull' : 'ind-bear');
+  document.getElementById('sMACDsub').textContent = `Diff: ${macdDiff.toFixed(4)}`;
+
+  // EMA
+  const emaEl = document.getElementById('iEMA');
+  const p = parseFloat(price), e20 = parseFloat(ema20), e50 = parseFloat(ema50);
+  const emaSignal = p > e20 && e20 > e50 ? 'Haussier' : p < e20 && e20 < e50 ? 'Baissier' : 'Mixte';
+  emaEl.textContent = emaSignal;
+  emaEl.className = 'ind-val ' + (emaSignal==='Haussier' ? 'ind-bull' : emaSignal==='Baissier' ? 'ind-bear' : 'ind-neut');
+  document.getElementById('iEMAsub').textContent = `20: ${fmt(e20)}`;
+
+  // Volume
+  const vr = parseFloat(volRatio);
+  const volEl = document.getElementById('iVol');
+  volEl.textContent = vr > 1.5 ? 'Élevé' : vr > 0.8 ? 'Normal' : 'Faible';
+  volEl.className = 'ind-val ' + (vr > 1.5 ? 'ind-bull' : vr < 0.7 ? 'ind-bear' : 'ind-neut');
+  document.getElementById('iVolsub').textContent = `x${vr} moy.`;
+}
+
+// ── ANALYSIS ──
+async function runAnalysis() {
+  if (!marketData) { await fetchMarket(); if (!marketData) return; }
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ ANALYSE EN COURS…';
+
+  document.getElementById('analysisBlock').innerHTML = '<div class="loading"><div class="spin"></div><span>Claude analyse les données…</span></div>';
+  document.getElementById('sigDir').textContent = '——';
+  document.getElementById('sigDir').className = 'signal-dir dir-idle';
+
+  const { price, change, rsi, ema20, ema50, macd, macdSig, volRatio, high24, low24 } = marketData;
+
+  const prompt = `Tu es un expert en day trading crypto. Analyse ces données live et génère un signal précis.
+
+DONNÉES LIVE BINANCE:
+- Paire: ${pairLabel}
+- Timeframe: ${tfCode}
+- Prix actuel: ${price} USDT
+- Variation 24h: ${change > 0 ? '+' : ''}${parseFloat(change).toFixed(2)}%
+- High 24h: ${high24} USDT
+- Low 24h: ${low24} USDT
+- RSI (14): ${rsi} ${parseFloat(rsi) > 70 ? '(suracheté)' : parseFloat(rsi) < 30 ? '(survendu)' : '(neutre)'}
+- EMA20: ${ema20} USDT
+- EMA50: ${ema50} USDT
+- MACD vs Signal: ${parseFloat(macd) > parseFloat(macdSig) ? 'MACD au-dessus (bullish)' : 'MACD en-dessous (bearish)'}
+- Volume vs moyenne: x${volRatio} (${parseFloat(volRatio) > 1.5 ? 'élevé' : parseFloat(volRatio) < 0.8 ? 'faible' : 'normal'})
+
+Réponds UNIQUEMENT en JSON valide, sans markdown ni backticks:
+{
+  "direction": "BUY" ou "SELL" ou "WAIT",
+  "entry": <prix entrée numérique>,
+  "stopLoss": <prix stop-loss numérique>,
+  "takeProfit": <prix take-profit numérique>,
+  "riskReward": <ratio R/R ex: 2.5>,
+  "confidence": <entier 40-92>,
+  "analysis": "<3 phrases d'analyse technique précise en français. Justifie le signal avec les indicateurs. Cite les niveaux clés.>"
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const raw = data.content.map(i => i.text || '').join('');
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const sig = JSON.parse(clean);
+
+    displaySignal(sig);
+
+  } catch(e) {
+    document.getElementById('analysisBlock').textContent = 'Erreur lors de l\'analyse. Réessaie.';
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ ANALYSER — GÉNÉRER SIGNAL';
+  }
+}
+
+function displaySignal(sig) {
+  const dirEl = document.getElementById('sigDir');
+  dirEl.textContent = sig.direction;
+  dirEl.className = 'signal-dir ' + (sig.direction==='BUY' ? 'dir-buy' : sig.direction==='SELL' ? 'dir-sell' : 'dir-wait');
+
+  document.getElementById('sigLabel').textContent = `${pairLabel} · ${tfCode.toUpperCase()}`;
+  document.getElementById('sigTime').textContent = 'Signal généré à ' + new Date().toLocaleTimeString('fr-FR');
+
+  document.getElementById('oEntry').textContent = fmt(sig.entry);
+  document.getElementById('oEntrySub').textContent = 'Prix limite recommandé';
+
+  document.getElementById('oSL').textContent = fmt(sig.stopLoss);
+  const slPct = Math.abs((sig.stopLoss - sig.entry) / sig.entry * 100).toFixed(2);
+  document.getElementById('oSLsub').textContent = `-${slPct}% depuis entrée`;
+
+  document.getElementById('oTP').textContent = fmt(sig.takeProfit);
+  const tpPct = Math.abs((sig.takeProfit - sig.entry) / sig.entry * 100).toFixed(2);
+  document.getElementById('oTPsub').textContent = `+${tpPct}% — R/R: ${sig.riskReward || '—'}x`;
+
+  document.getElementById('analysisBlock').innerHTML = sig.analysis;
+  document.getElementById('analysisBlock').className = 'analysis-block';
+
+  const conf = sig.confidence;
+  const color = conf >= 70 ? 'var(--green)' : conf >= 55 ? 'var(--gold)' : 'var(--red)';
+  const fill = document.getElementById('confFill');
+  fill.style.background = color;
+  fill.style.width = '0%';
+  const pctEl = document.getElementById('confPct');
+  pctEl.style.color = color;
+  pctEl.textContent = conf + '%';
+  setTimeout(() => { fill.style.width = conf + '%'; }, 80);
+
+  // Store for copy
+  window._lastSignal = sig;
+}
+
+function copyOrders() {
+  const s = window._lastSignal;
+  if (!s) return;
+  const text = `${pairLabel} · ${tfCode.toUpperCase()} — ${s.direction}
+Entrée   : ${fmt(s.entry)}
+Stop Loss: ${fmt(s.stopLoss)}
+Take Profit: ${fmt(s.takeProfit)}
+R/R: ${s.riskReward || '—'}x | Confiance: ${s.confidence}%`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '[ ✓ COPIÉ ]';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '[ COPIER LES ORDRES ]'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function resetSignal() {
+  document.getElementById('sigDir').textContent = '——';
+  document.getElementById('sigDir').className = 'signal-dir dir-idle';
+  document.getElementById('oEntry').textContent = '—';
+  document.getElementById('oSL').textContent = '—';
+  document.getElementById('oTP').textContent = '—';
+  document.getElementById('oEntrySub').textContent = '';
+  document.getElementById('oSLsub').textContent = '';
+  document.getElementById('oTPsub').textContent = '';
+  document.getElementById('analysisBlock').textContent = 'En attente d\'analyse…';
+  document.getElementById('confFill').style.width = '0%';
+  document.getElementById('confPct').textContent = '—';
+}
+
+// ── HELPERS ──
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  const num = parseFloat(n);
+  if (num >= 1000) return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (num >= 1) return num.toFixed(4);
+  return num.toFixed(6);
+}
+
+function fmtVol(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
+
+function setStatus(msg, ok) {
+  const el = document.getElementById('dataStatus');
+  el.textContent = msg;
+  el.className = ok ? 'status-ok' : 'status-err';
+  document.getElementById('lastUpdate').textContent = 'Mis à jour: ' + new Date().toLocaleTimeString('fr-FR');
+}
+
+// ── AUTO REFRESH ──
+function startCountdown() {
+  clearInterval(autoTimer);
+  countdown = 30;
+  autoTimer = setInterval(() => {
+    countdown--;
+    document.getElementById('timerDisp').textContent = `Refresh: ${countdown}s`;
+    if (countdown <= 0) {
+      fetchMarket();
+      countdown = 30;
+    }
+  }, 1000);
+}
+
+// ── INIT ──
+fetchMarket();
+startCountdown();
+</script>
+</body>
+</html>
